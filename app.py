@@ -33,27 +33,26 @@ st.markdown("""
 st.markdown("### 📊 KolterAI Assistant")
 st.caption("Connected to live GA4 metrics.")
 
-# Retrieve secrets
-api_key = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
-property_id = os.getenv("GA4_PROPERTY_ID") or st.secrets.get("GA4_PROPERTY_ID")
-gcp_creds_dict = st.secrets.get("gcp_service_account")
-
-if not api_key or not property_id or not gcp_creds_dict:
+# Verify secrets exist
+if "GEMINI_API_KEY" not in st.secrets or "GA4_PROPERTY_ID" not in st.secrets or "gcp_service_account" not in st.secrets:
     st.error("⚠️ Missing credentials. Check Streamlit Secrets configuration.")
     st.stop()
 
+property_id = st.secrets["GA4_PROPERTY_ID"]
+
 # Initialize API Clients
 @st.cache_resource
-def get_gemini_client(key: str):
-    return genai.Client(api_key=key)
+def get_gemini_client():
+    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 @st.cache_resource
-def get_ga4_client(creds_dict):
+def get_ga4_client():
+    creds_dict = dict(st.secrets["gcp_service_account"])
     creds = service_account.Credentials.from_service_account_info(creds_dict)
     return BetaAnalyticsDataClient(credentials=creds)
 
-client = get_gemini_client(api_key)
-ga4_client = get_ga4_client(gcp_creds_dict)
+client = get_gemini_client()
+ga4_client = get_ga4_client()
 
 # Fetch live GA4 metric summary for the last 30 days
 def get_live_ga4_summary(prop_id: str) -> str:
