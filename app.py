@@ -128,7 +128,7 @@ if prompt := st.chat_input("Ask about your GA4 metrics..."):
         response_placeholder = st.empty()
         try:
             response = client.models.generate_content_stream(
-                model="gemini-1.5-flash",
+                model="gemini-3.6-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
