@@ -36,7 +36,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Compact Header
-st.markdown("### 📊 Web Analytics AI Assistant")
+st.markdown("### AaronKolterAI Assistant")
 st.caption("Ask about web traffic trends, GA4 metrics, or conversion funnel diagnostics.")
 
 # Retrieve API key from secrets, env vars, or sidebar input fallback
