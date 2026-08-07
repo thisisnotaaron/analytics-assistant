@@ -2,32 +2,27 @@ import os
 import streamlit as st
 from google import genai
 from google.genai import types
+from google.analytics.data_v1beta import BetaAnalyticsDataClient
+from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
+from google.oauth2 import service_account
 
-# Page setup: optimized layout for sidebar/panel embedding
+# Page setup
 st.set_page_config(
-    page_title="Web Analytics Assistant",
+    page_title="KolterAI Assistant",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS: Hide Streamlit chrome & adjust padding for snug iframe fit inside Looker Studio
+# Custom CSS for compact iframe embedding in Looker Studio
 st.markdown("""
 <style>
-    /* Hide Streamlit header, footer, and hamburger menu */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Remove body margins for iframe embedding */
     .block-container {
-        padding-top: 0.75rem !important;
-        padding-bottom: 0.75rem !important;
-        padding-left: 0.75rem !important;
-        padding-right: 0.75rem !important;
+        padding: 0.75rem !important;
     }
-    
-    /* Reduce chat padding for tight UI constraints */
     .stChatMessage {
         padding: 0.5rem 0.75rem !important;
         font-size: 0.9rem !important;
@@ -35,80 +30,110 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Compact Header
-st.markdown("### AaronKolterAI Assistant")
-st.caption("Ask about web traffic trends, GA4 metrics, or conversion funnel diagnostics.")
+st.markdown("### 📊 KolterAI Assistant")
+st.caption("Connected to live GA4 metrics.")
 
-# Retrieve API key from secrets, env vars, or sidebar input fallback
+# Retrieve secrets
 api_key = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+property_id = os.getenv("GA4_PROPERTY_ID") or st.secrets.get("GA4_PROPERTY_ID")
+gcp_creds_dict = st.secrets.get("gcp_service_account")
 
-if not api_key:
-    with st.sidebar:
-        st.subheader("Configuration")
-        api_key = st.text_input("Enter Gemini API Key", type="password")
-        st.info("Get an API key from [Google AI Studio](https://aistudio.google.com/).")
-
-if not api_key:
-    st.warning("⚠️ API Key missing. Add `GEMINI_API_KEY` to `.streamlit/secrets.toml` or sidebar settings.")
+if not api_key or not property_id or not gcp_creds_dict:
+    st.error("⚠️ Missing credentials. Check Streamlit Secrets configuration.")
     st.stop()
 
-# Initialize Gemini Client
+# Initialize API Clients
 @st.cache_resource
 def get_gemini_client(key: str):
     return genai.Client(api_key=key)
 
-client = get_gemini_client(api_key)
+@st.cache_resource
+def get_ga4_client(creds_dict):
+    creds = service_account.Credentials.from_service_account_info(creds_dict)
+    return BetaAnalyticsDataClient(credentials=creds)
 
-# System Instructions tailored for Web Analytics & Looker Studio
-SYSTEM_INSTRUCTION = """
-You are an expert Web Analytics AI Assistant embedded inside a Looker Studio dashboard. 
-Your role is to help marketers, product managers, and site owners interpret web metrics.
+client = get_gemini_client(api_key)
+ga4_client = get_ga4_client(gcp_creds_dict)
+
+# Fetch live GA4 metric summary for the last 30 days
+def get_live_ga4_summary(prop_id: str) -> str:
+    try:
+        request = RunReportRequest(
+            property=f"properties/{prop_id}",
+            dimensions=[Dimension(name="sessionSourceMedium")],
+            metrics=[
+                Metric(name="activeUsers"),
+                Metric(name="sessions"),
+                Metric(name="conversions"),
+                Metric(name="bounceRate")
+            ],
+            date_ranges=[DateRange(start_date="30daysAgo", end_date="today")],
+            limit=5
+        )
+
+        response = ga4_client.run_report(request)
+        
+        data_summary = []
+        for row in response.rows:
+            source = row.dimension_values[0].value
+            users = row.metric_values[0].value
+            sessions = row.metric_values[1].value
+            conversions = row.metric_values[2].value
+            bounce_rate = round(float(row.metric_values[3].value) * 100, 2)
+            data_summary.append(f"- Channel: {source} | Users: {users} | Sessions: {sessions} | Conversions: {conversions} | Bounce Rate: {bounce_rate}%")
+            
+        return "\n".join(data_summary) if data_summary else "No traffic metric data returned."
+    except Exception as e:
+        return f"Error pulling GA4 data: {str(e)}"
+
+# Query GA4 context on load
+with st.spinner("Fetching live GA4 context..."):
+    ga4_data_context = get_live_ga4_summary(property_id)
+
+SYSTEM_INSTRUCTION = f"""
+You are KolterAI Assistant, embedded inside a Looker Studio dashboard.
+You have access to live GA4 performance data for the last 30 days:
+
+[LIVE GA4 DATA CONTEXT]
+{ga4_data_context}
 
 Guidelines:
-1. Explain GA4 metrics simply (e.g., Session vs User, Bounce Rate vs Engagement Rate, Conversions).
-2. Provide diagnostic frameworks when users ask why metrics dropped or spiked (e.g., check channel breakdown, technical errors, campaign end dates).
-3. Keep responses structured, concise, and easy to read inside a narrow dashboard sidebar.
-4. Use bullet points and bold key terms for high scannability.
+1. Reference the live metrics above when users ask about site performance or traffic sources.
+2. Keep answers concise, structured, and easy to read in a narrow dashboard panel.
+3. Use bolding and bullet points for high scannability.
 """
 
-# Initialize session state for conversation history
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant",
-            "content": "👋 Hi! I'm your analytics assistant. Ask me questions like:\n- *Why might organic traffic drop week-over-week?*\n- *What's the difference between Sessions and Engaged Sessions?*\n- *How do I diagnose a dip in conversion rate?*"
+            "content": "👋 Hi! I'm KolterAI Assistant. I'm synced with your live GA4 metrics for the last 30 days. Ask me about your traffic channels, bounce rates, or conversions!"
         }
     ]
 
-# Render existing chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User Chat Input
-if prompt := st.chat_input("Ask an analytics question..."):
-    # Append & display user message
+if prompt := st.chat_input("Ask about your GA4 metrics..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Convert chat history into Google GenAI Content objects
     contents = []
     for msg in st.session_state.messages:
         role = "user" if msg["role"] == "user" else "model"
         contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
 
-    # Stream Gemini Response
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
-        
         try:
             response = client.models.generate_content_stream(
                 model="gemini-2.5-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
-                    temperature=0.5,
+                    temperature=0.4,
                 )
             )
             
