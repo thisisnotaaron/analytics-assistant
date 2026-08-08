@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -156,6 +157,9 @@ ga4_client = get_ga4_client()
 # Fetch live GA4 metric summary for YTD (Year-To-Date)
 def get_live_ga4_summary(prop_id: str) -> str:
     try:
+        # Dynamically set start date to January 1st of current year
+        ytd_start = f"{datetime.now().year}-01-01"
+
         request = RunReportRequest(
             property=f"properties/{prop_id}",
             dimensions=[Dimension(name="sessionSourceMedium")],
@@ -165,7 +169,7 @@ def get_live_ga4_summary(prop_id: str) -> str:
                 Metric(name="conversions"),
                 Metric(name="bounceRate")
             ],
-            date_ranges=[DateRange(start_date="yearToDate", end_date="today")],
+            date_ranges=[DateRange(start_date=ytd_start, end_date="today")],
             limit=10
         )
 
