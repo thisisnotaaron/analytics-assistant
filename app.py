@@ -157,12 +157,14 @@ ga4_client = get_ga4_client()
 # Fetch live GA4 metric summary for YTD (Year-To-Date)
 def get_live_ga4_summary(prop_id: str) -> str:
     try:
-        # Dynamically set start date to January 1st of current year
         ytd_start = f"{datetime.now().year}-01-01"
 
         request = RunReportRequest(
             property=f"properties/{prop_id}",
-            dimensions=[Dimension(name="sessionSourceMedium")],
+            dimensions=[
+                Dimension(name="sessionSourceMedium"),
+                Dimension(name="sessionCampaignName")  # <-- Added Campaign Dimension
+            ],
             metrics=[
                 Metric(name="activeUsers"),
                 Metric(name="sessions"),
@@ -170,7 +172,7 @@ def get_live_ga4_summary(prop_id: str) -> str:
                 Metric(name="bounceRate")
             ],
             date_ranges=[DateRange(start_date=ytd_start, end_date="today")],
-            limit=10
+            limit=25  # Increased limit to capture multiple campaign rows
         )
 
         response = ga4_client.run_report(request)
@@ -178,12 +180,13 @@ def get_live_ga4_summary(prop_id: str) -> str:
         data_summary = []
         for row in response.rows:
             source = row.dimension_values[0].value
+            campaign = row.dimension_values[1].value
             users = row.metric_values[0].value
             sessions = row.metric_values[1].value
             conversions = row.metric_values[2].value
             bounce_rate = round(float(row.metric_values[3].value) * 100, 2)
             data_summary.append(
-                f"- Channel: {source} | Active Users: {users} | Sessions: {sessions} | Conversions: {conversions} | Bounce Rate: {bounce_rate}%"
+                f"- Source/Medium: {source} | Campaign: {campaign} | Active Users: {users} | Sessions: {sessions} | Conversions: {conversions} | Bounce Rate: {bounce_rate}%"
             )
             
         return "\n".join(data_summary) if data_summary else "No traffic metric data returned for YTD."
