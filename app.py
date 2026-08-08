@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS: Gemini Google Inspired UI
+# Custom CSS: Force Light Mode & High Contrast
 st.markdown("""
 <style>
     /* Hide default Streamlit headers & footers */
@@ -23,17 +23,15 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Global container padding */
+    /* App container background & text colors */
+    .stApp {
+        background-color: #f8f9fa !important;
+        color: #1f1f1f !important;
+    }
+
     .block-container {
         padding: 1.25rem 1rem !important;
         max-width: 100% !important;
-    }
-
-    /* Main background & typography */
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background-color: #f8f9fa;
-        color: #1f1f1f;
     }
 
     /* Header styling */
@@ -43,14 +41,14 @@ st.markdown("""
         justify-content: space-between;
         padding-bottom: 0.75rem;
         border-bottom: 1px solid #e3e8ef;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
     }
     
     .app-title {
         font-size: 1.1rem;
         font-weight: 600;
         letter-spacing: -0.02em;
-        color: #1f1f1f;
+        color: #1f1f1f !important;
     }
 
     .status-badge {
@@ -59,8 +57,8 @@ st.markdown("""
         gap: 6px;
         font-size: 0.75rem;
         font-weight: 500;
-        color: #444746;
-        background: #e9eef6;
+        color: #444746 !important;
+        background: #e9eef6 !important;
         padding: 4px 10px;
         border-radius: 12px;
     }
@@ -75,37 +73,43 @@ st.markdown("""
 
     .session-disclaimer {
         font-size: 0.75rem;
-        color: #747775;
-        margin-top: -0.5rem;
-        margin-bottom: 1.25rem;
+        color: #5e5e5e !important;
+        margin-bottom: 1rem;
     }
 
-    /* Chat bubble styling */
-    .stChatMessage {
+    /* Chat bubble container overrides */
+    [data-testid="stChatMessage"] {
         border-radius: 16px !important;
         padding: 0.85rem 1.1rem !important;
         margin-bottom: 0.75rem !important;
         border: 1px solid #e3e8ef !important;
         font-size: 0.9rem !important;
         line-height: 1.5 !important;
+        color: #1f1f1f !important;
     }
 
-    /* User Chat Bubble */
+    /* Assistant response background */
+    [data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: #ffffff !important;
+    }
+
+    /* User prompt background */
     [data-testid="stChatMessage"]:nth-child(even) {
         background-color: #f0f4f9 !important;
         border-color: #d3e3fd !important;
     }
 
-    /* Assistant Chat Bubble */
-    [data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: #ffffff !important;
+    /* Text inside chat bubbles */
+    [data-testid="stChatMessage"] p {
+        color: #1f1f1f !important;
     }
 
-    /* Input box refinement */
+    /* Input box styling */
     .stChatInput > div {
         border-radius: 24px !important;
         border: 1px solid #c4c7c5 !important;
         background-color: #ffffff !important;
+        color: #1f1f1f !important;
     }
 </style>
 """, unsafe_allow_html=True)
