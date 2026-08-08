@@ -5,7 +5,7 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
-from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
+from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest, OrderBy
 from google.oauth2 import service_account
 
 # Page Configuration
@@ -163,7 +163,7 @@ def get_live_ga4_summary(prop_id: str) -> str:
             property=f"properties/{prop_id}",
             dimensions=[
                 Dimension(name="sessionSourceMedium"),
-                Dimension(name="sessionCampaignName")  # <-- Added Campaign Dimension
+                Dimension(name="sessionCampaignName")
             ],
             metrics=[
                 Metric(name="activeUsers"),
@@ -171,8 +171,15 @@ def get_live_ga4_summary(prop_id: str) -> str:
                 Metric(name="conversions"),
                 Metric(name="bounceRate")
             ],
+            # Explicitly sort by top conversion drivers first
+            order_bys=[
+                OrderBy(
+                    metric=OrderBy.MetricOrderBy(metric_name="conversions"),
+                    desc=True
+                )
+            ],
             date_ranges=[DateRange(start_date=ytd_start, end_date="today")],
-            limit=25  # Increased limit to capture multiple campaign rows
+            limit=100  # Expand limit to capture top 100 conversion rows across all channels
         )
 
         response = ga4_client.run_report(request)
@@ -186,7 +193,7 @@ def get_live_ga4_summary(prop_id: str) -> str:
             conversions = row.metric_values[2].value
             bounce_rate = round(float(row.metric_values[3].value) * 100, 2)
             data_summary.append(
-                f"- Source/Medium: {source} | Campaign: {campaign} | Active Users: {users} | Sessions: {sessions} | Conversions: {conversions} | Bounce Rate: {bounce_rate}%"
+                f"- Source/Medium: {source} | Campaign: {campaign} | Conversions: {conversions} | Sessions: {sessions} | Active Users: {users} | Bounce Rate: {bounce_rate}%"
             )
             
         return "\n".join(data_summary) if data_summary else "No traffic metric data returned for YTD."
